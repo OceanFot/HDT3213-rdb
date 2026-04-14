@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hdt3213/rdb/core"
 	"github.com/hdt3213/rdb/helper"
 )
 
@@ -32,6 +33,8 @@ Options:
   -concurrent The number of concurrent json converters. 4 by default.
   -show-global-meta Show global meta likes redis-verion/ctime/functions
   -no-expired filter expired keys(deprecated, please use 'expire' option)
+  -ioLimiterLimit IO read limiter( MiB/s ), default 1024 - ioLimiter.SetLimit(rate.Limit(ioLimiterLimit))
+  -ioLimiterBurst ioLimiter.SetBurst(ioLimiterBurst), default 1024
 
 Examples:
 parameters between '[' and ']' is optional
@@ -75,6 +78,8 @@ func main() {
 	var concurrent int
 	var showGlobalMeta bool
 	var err error
+	var ioLimiterLimit int
+	var ioLimiterBurst int
 	flagSet.StringVar(&cmd, "c", "", "command for rdb: json")
 	flagSet.StringVar(&output, "o", "", "output file path")
 	flagSet.IntVar(&n, "n", 0, "")
@@ -87,6 +92,8 @@ func main() {
 	flagSet.StringVar(&sizeExpr, "size", "", "size filter expression")
 	flagSet.BoolVar(&noExpired, "no-expired", false, "filter expired keys(deprecated, please use expire)")
 	flagSet.BoolVar(&showGlobalMeta, "show-global-meta", false, "Show global meta likes redis-verion/ctime/functions")
+	flagSet.IntVar(&ioLimiterLimit, "ioLimiterLimit", 0, "IO read limiter( MiB/s )")
+	flagSet.IntVar(&ioLimiterBurst, "ioLimiterBurst", 0, "ioLimiter.SetBurst")
 	_ = flagSet.Parse(os.Args[1:]) // ExitOnError
 	src := flagSet.Arg(0)
 
@@ -117,6 +124,15 @@ func main() {
 	}
 	if showGlobalMeta {
 		options = append(options, helper.WithGlobalMeta())
+	}
+	// ioLimiter
+	if ioLimiterLimit > 0 {
+		fmt.Printf("Update IoLimiter.Limit to %v\n", ioLimiterLimit)
+		core.UpdateIoLimiterLimit(ioLimiterLimit)
+	}
+	if ioLimiterBurst > 0 {
+		fmt.Printf("Update IoLimiter.Burst to %v\n", ioLimiterBurst)
+		core.UpdateIoLimiterBurst(ioLimiterBurst)
 	}
 
 	var outputFile *os.File
@@ -158,4 +174,6 @@ func main() {
 		fmt.Printf("error: %v\n", err)
 		return
 	}
+
+	fmt.Printf("ReadCount = %v\n", core.ReadCount)
 }
